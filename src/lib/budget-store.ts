@@ -37,36 +37,49 @@ export function useFmt() {
   return (n: number) => formatCurrency(n, currency);
 }
 
+// Module-level broadcast: when any write completes, all hook instances reload.
+type Listener = () => void;
+const txListeners = new Set<Listener>();
+function notifyTx() { txListeners.forEach((fn) => fn()); }
+
 // ---- Transactions ----
 export function useTransactions() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('transactions')
       .select('*')
       .order('date', { ascending: false });
+    if (error) console.error('load transactions:', error.message);
     if (data) setTransactions(data as Transaction[]);
     setLoading(false);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    txListeners.add(load);
+    return () => { txListeners.delete(load); };
+  }, [load]);
 
   const add = async (t: Omit<Transaction, 'id'>) => {
     const { data: { user } } = await supabase.auth.getUser();
-    await supabase.from('transactions').insert({ ...t, user_id: user!.id });
-    await load();
+    const { error } = await supabase.from('transactions').insert({ ...t, user_id: user!.id });
+    if (error) { console.error('add transaction:', error.message); return; }
+    notifyTx();
   };
 
   const remove = async (id: string) => {
-    await supabase.from('transactions').delete().eq('id', id);
-    await load();
+    const { error } = await supabase.from('transactions').delete().eq('id', id);
+    if (error) { console.error('remove transaction:', error.message); return; }
+    notifyTx();
   };
 
   const update = async (id: string, patch: Partial<Omit<Transaction, 'id'>>) => {
-    await supabase.from('transactions').update(patch).eq('id', id);
-    await load();
+    const { error } = await supabase.from('transactions').update(patch).eq('id', id);
+    if (error) { console.error('update transaction:', error.message); return; }
+    notifyTx();
   };
 
   return { transactions, loading, add, remove, update };
