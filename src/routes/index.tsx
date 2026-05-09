@@ -1,22 +1,78 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { AddTransaction } from "@/components/budget/AddTransaction";
-import { TrendingUp, TrendingDown, Wallet, Sparkles } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, Sparkles, ChevronDown } from "lucide-react";
 import { CategoryChart } from "@/components/budget/CategoryChart";
 import { TrendChart } from "@/components/budget/TrendChart";
 import { TransactionList } from "@/components/budget/TransactionList";
 import { TopBarControls } from "@/components/budget/TopBarControls";
 import { useFmt, useTransactions } from "@/lib/budget-store";
+import type { Transaction } from "@/lib/budget-store";
 
 
 export const Route = createFileRoute("/")({
   component: Index,
 });
 
+type TrendDays = 7 | 14 | 30 | 90;
+type FilterPeriod = "all" | "this-month" | "last-month" | "last-3-months" | "custom";
+
+const TREND_OPTIONS: { label: string; value: TrendDays }[] = [
+  { label: "7d", value: 7 },
+  { label: "14d", value: 14 },
+  { label: "30d", value: 30 },
+  { label: "90d", value: 90 },
+];
+
+const FILTER_OPTIONS: { label: string; value: FilterPeriod }[] = [
+  { label: "All time", value: "all" },
+  { label: "This month", value: "this-month" },
+  { label: "Last month", value: "last-month" },
+  { label: "Last 3 months", value: "last-3-months" },
+  { label: "Custom", value: "custom" },
+];
+
+function filterTransactions(
+  txs: Transaction[],
+  period: FilterPeriod,
+  customFrom: string,
+  customTo: string,
+): Transaction[] {
+  if (period === "all") return txs;
+  const now = new Date();
+  let from: Date;
+  let to: Date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  if (period === "this-month") {
+    from = new Date(now.getFullYear(), now.getMonth(), 1);
+  } else if (period === "last-month") {
+    from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    to = new Date(now.getFullYear(), now.getMonth(), 1);
+  } else if (period === "last-3-months") {
+    from = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+  } else {
+    from = customFrom ? new Date(customFrom) : new Date(0);
+    to = customTo ? new Date(new Date(customTo).getTime() + 86400000) : to;
+  }
+  return txs.filter((t) => {
+    const d = new Date(t.date);
+    return d >= from && d < to;
+  });
+}
+
 function Index() {
   const { transactions } = useTransactions();
   const fmt = useFmt();
+  const [trendDays, setTrendDays] = useState<TrendDays>(14);
+  const [filterPeriod, setFilterPeriod] = useState<FilterPeriod>("all");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
+
+  const filteredTransactions = useMemo(
+    () => filterTransactions(transactions, filterPeriod, customFrom, customTo),
+    [transactions, filterPeriod, customFrom, customTo],
+  );
 
   const { income, expense, balance, topCat } = useMemo(() => {
     let income = 0;
@@ -108,38 +164,98 @@ function Index() {
 
         <section className="mt-6">
           <div className="rounded-2xl border border-border bg-surface p-6">
-            <div className="mb-4 flex items-baseline justify-between">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <div className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
                   Cash flow
                 </div>
                 <h2 className="font-display mt-1 text-2xl font-semibold text-ink">
-                  Last 14 days
+                  Last {trendDays} days
                 </h2>
               </div>
-              <div className="flex gap-3 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-leaf" /> Income
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-clay" /> Expense
-                </span>
+              <div className="flex items-center gap-4">
+                <div className="flex gap-3 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-leaf" /> Income
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-clay" /> Expense
+                  </span>
+                </div>
+                <div className="flex rounded-lg border border-border overflow-hidden">
+                  {TREND_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setTrendDays(opt.value)}
+                      className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                        trendDays === opt.value
+                          ? "bg-ink text-background"
+                          : "bg-surface text-muted-foreground hover:bg-muted"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
-            <TrendChart transactions={transactions} />
+            <TrendChart transactions={transactions} days={trendDays} />
           </div>
         </section>
 
         <section className="mt-6">
-          <div className="mb-4 flex items-baseline justify-between">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h2 className="font-display text-2xl font-semibold text-ink">
               Recent activity
             </h2>
-            <span className="text-xs text-muted-foreground">
-              Showing latest {Math.min(12, transactions.length)} of {transactions.length}
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative">
+                <button
+                  onClick={() => setShowFilterMenu((v) => !v)}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-muted"
+                >
+                  {FILTER_OPTIONS.find((o) => o.value === filterPeriod)?.label ?? "Filter"}
+                  <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                </button>
+                {showFilterMenu && (
+                  <div className="absolute right-0 z-10 mt-1 w-44 rounded-xl border border-border bg-surface shadow-lg">
+                    {FILTER_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        onClick={() => { setFilterPeriod(opt.value); setShowFilterMenu(false); }}
+                        className={`flex w-full items-center px-3 py-2 text-left text-xs transition-colors hover:bg-muted first:rounded-t-xl last:rounded-b-xl ${
+                          filterPeriod === opt.value ? "font-semibold text-ink" : "text-muted-foreground"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {filterPeriod === "custom" && (
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="date"
+                    value={customFrom}
+                    onChange={(e) => setCustomFrom(e.target.value)}
+                    className="rounded-lg border border-border bg-surface px-2 py-1 text-xs text-ink focus:outline-none"
+                  />
+                  <span className="text-xs text-muted-foreground">to</span>
+                  <input
+                    type="date"
+                    value={customTo}
+                    onChange={(e) => setCustomTo(e.target.value)}
+                    className="rounded-lg border border-border bg-surface px-2 py-1 text-xs text-ink focus:outline-none"
+                  />
+                </div>
+              )}
+              <span className="text-xs text-muted-foreground">
+                {filteredTransactions.length} of {transactions.length} entries
+              </span>
+            </div>
           </div>
-          <TransactionList transactions={transactions} />
+          <TransactionList transactions={filteredTransactions} />
         </section>
 
         <section className="mt-6">

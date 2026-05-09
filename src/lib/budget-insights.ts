@@ -87,7 +87,12 @@ export function detectUnusualSpends(transactions: Transaction[]): SpendAlert[] {
   return alerts.sort((a, b) => b.multiplier - a.multiplier);
 }
 
-export function buildRecommendations(transactions: Transaction[], budgets: Partial<Record<Category, number>>, subs: Subscription[]): Recommendation[] {
+export function buildRecommendations(
+  transactions: Transaction[],
+  budgets: Partial<Record<Category, number>>,
+  subs: Subscription[],
+  fmt: (n: number) => string = (n) => `$${Math.round(n)}`,
+): Recommendation[] {
   const recs: Recommendation[] = [];
   const now = new Date();
   const monthStart = startOfMonth(now).getTime();
@@ -105,21 +110,21 @@ export function buildRecommendations(transactions: Transaction[], budgets: Parti
   for (const [cat, limit] of Object.entries(budgets) as [Category, number][]) {
     const spent = monthExpense.get(cat) ?? 0;
     if (spent > limit) {
-      recs.push({ id: `over-${cat}`, severity: 'warn', title: `Over budget on ${cat}`, detail: `You've spent $${Math.round(spent)} of your $${limit} ${cat} budget this month.`, saving: spent - limit });
+      recs.push({ id: `over-${cat}`, severity: 'warn', title: `Over budget on ${cat}`, detail: `You've spent ${fmt(spent)} of your ${fmt(limit)} ${cat} budget this month.`, saving: spent - limit });
     } else if (limit > 0 && spent / limit < 0.5) {
-      recs.push({ id: `under-${cat}`, severity: 'good', title: `Under budget on ${cat}`, detail: `Only $${Math.round(spent)} of $${limit} used — nice.` });
+      recs.push({ id: `under-${cat}`, severity: 'good', title: `Under budget on ${cat}`, detail: `Only ${fmt(spent)} of ${fmt(limit)} used — nice.` });
     }
   }
   const subTotal = subs.reduce((s, x) => s + x.monthlyCost, 0);
   if (subs.length >= 2) {
-    recs.push({ id: 'sub-stack', severity: 'info', title: `Recurring charges add up to ~$${Math.round(subTotal)}/mo`, detail: `${subs.length} likely subscriptions detected. Cancel one you don't use to free cash for savings.`, saving: subTotal });
+    recs.push({ id: 'sub-stack', severity: 'info', title: `Recurring charges add up to ~${fmt(subTotal)}/mo`, detail: `${subs.length} likely subscriptions detected. Cancel one you don't use to free cash for savings.`, saving: subTotal });
   }
   if (monthIncome > 0) {
     const rate = (monthIncome - monthSpend) / monthIncome;
     if (rate < 0.1) {
-      recs.push({ id: 'save-rate', severity: 'warn', title: `Low savings rate (${Math.round(rate * 100)}%)`, detail: `Try to keep ~20% of income. That'd be about $${Math.round(monthIncome * 0.2)} this month.` });
+      recs.push({ id: 'save-rate', severity: 'warn', title: `Low savings rate (${Math.round(rate * 100)}%)`, detail: `Try to keep ~20% of income. That'd be about ${fmt(monthIncome * 0.2)} this month.` });
     } else if (rate >= 0.2) {
-      recs.push({ id: 'save-rate-good', severity: 'good', title: `Healthy savings rate (${Math.round(rate * 100)}%)`, detail: `You kept $${Math.round(monthIncome - monthSpend)} of $${Math.round(monthIncome)} this month.` });
+      recs.push({ id: 'save-rate-good', severity: 'good', title: `Healthy savings rate (${Math.round(rate * 100)}%)`, detail: `You kept ${fmt(monthIncome - monthSpend)} of ${fmt(monthIncome)} this month.` });
     }
   }
   const top = [...monthExpense.entries()].sort((a, b) => b[1] - a[1])[0];

@@ -11,17 +11,19 @@ import {
 import type { Transaction } from "@/lib/budget-store";
 import { useFmt } from "@/lib/budget-store";
 
-export function TrendChart({ transactions }: { transactions: Transaction[] }) {
+export function TrendChart({ transactions, days = 14 }: { transactions: Transaction[]; days?: number }) {
   const fmt = useFmt();
 
   const data = useMemo(() => {
     const map = new Map<string, { date: string; expense: number; income: number }>();
     const now = new Date();
-    for (let i = 13; i >= 0; i--) {
+    for (let i = days - 1; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
       const key = d.toISOString().slice(0, 10);
       map.set(key, {
-        date: d.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+        date: days > 31
+          ? d.toLocaleDateString(undefined, { month: "short", day: "numeric" })
+          : d.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
         expense: 0,
         income: 0,
       });
@@ -34,7 +36,9 @@ export function TrendChart({ transactions }: { transactions: Transaction[] }) {
       else row.income += t.amount;
     });
     return Array.from(map.values());
-  }, [transactions]);
+  }, [transactions, days]);
+
+  const tickInterval = days <= 14 ? 0 : days <= 30 ? 4 : days <= 90 ? 9 : 14;
 
   return (
     <div className="h-[260px]">
@@ -51,7 +55,7 @@ export function TrendChart({ transactions }: { transactions: Transaction[] }) {
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-          <XAxis dataKey="date" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} />
+          <XAxis dataKey="date" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} interval={tickInterval} />
           <YAxis tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} width={50} />
           <Tooltip
             formatter={(v: number) => fmt(v)}

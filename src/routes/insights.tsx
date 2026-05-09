@@ -50,8 +50,8 @@ function InsightsPage() {
   const subs = useMemo(() => detectSubscriptions(transactions), [transactions]);
   const alerts = useMemo(() => detectUnusualSpends(transactions), [transactions]);
   const recs = useMemo(
-    () => buildRecommendations(transactions, budgets, subs),
-    [transactions, budgets, subs],
+    () => buildRecommendations(transactions, budgets, subs, fmt),
+    [transactions, budgets, subs, fmt],
   );
   const summary = useMemo(() => monthlySummary(transactions), [transactions]);
 
