@@ -12,7 +12,8 @@ create table if not exists public.transactions (
   category    text not null,
   note        text not null default '',
   date        timestamptz not null default now(),
-  created_at  timestamptz not null default now()
+  created_at  timestamptz not null default now(),
+  mail_id     text unique
 );
 
 alter table public.transactions enable row level security;
