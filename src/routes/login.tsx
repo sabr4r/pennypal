@@ -47,7 +47,7 @@ function LoginPage() {
         <div className="mb-8 text-center">
           <div className="flex items-center justify-center gap-2 text-xs font-medium uppercase tracking-[0.24em] text-leaf">
             <span className="h-1.5 w-1.5 rounded-full bg-leaf" />
-            Ledger
+            Penny Pal
           </div>
           <h1 className="font-display mt-3 text-4xl font-semibold text-ink">
             {mode === "signin" ? "Welcome back." : "Get started."}

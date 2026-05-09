@@ -45,7 +45,7 @@ function Index() {
           <div>
             <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.24em] text-leaf">
               <span className="h-1.5 w-1.5 rounded-full bg-leaf" />
-              Ledger
+              Penny Pal
             </div>
             <h1 className="font-display mt-3 text-5xl font-semibold leading-[0.95] text-ink md:text-6xl">
               Your money,

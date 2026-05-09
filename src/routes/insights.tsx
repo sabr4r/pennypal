@@ -67,7 +67,7 @@ function InsightsPage() {
               to="/"
               className="inline-flex items-center gap-1 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground hover:text-ink"
             >
-              <ArrowLeft className="h-3 w-3" /> Back to ledger
+              <ArrowLeft className="h-3 w-3" /> Back to Penny Pal
             </Link>
             <h1 className="font-display mt-3 text-5xl font-semibold leading-[0.95] text-ink md:text-6xl">
               Insights<span className="italic text-leaf">.</span>
